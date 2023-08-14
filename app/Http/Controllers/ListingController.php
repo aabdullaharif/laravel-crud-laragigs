@@ -6,6 +6,7 @@ use App\Models\Listing;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Storage;
 
 class ListingController extends Controller
 {
@@ -43,6 +44,12 @@ class ListingController extends Controller
             'description' => 'required'
         ]));
 
+        if($request->hasFile('logo')){
+            $formFields['logo'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        $formFields['user_id'] = auth()->id();
+
         Listing::create($formFields);
 
         return redirect('/')->with('success', 'Listing Created Successfully!');
@@ -61,24 +68,68 @@ class ListingController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Listing $listing)
     {
-        //
+        return view('listings.edit', [
+            'listing'=> $listing
+        ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Listing $listing)
     {
-        //
+        if($listing->user_id != auth()->id()){
+            abort(403, 'Unauthorized Action');
+        }
+
+        $formFields = $request->validate(([
+            'title'=> 'required',
+            'company' => ['required'],
+            'location' => 'required',
+            'website' => 'required',
+            'email' => ['required', 'email'],
+            'tags' => 'required',
+            'description' => 'required'
+        ]));
+
+        if($request->hasFile('logo')){
+            $formFields['logo'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        $listing->update($formFields);
+
+        return back()->with('success', 'Listing Updated Successfully!');
+    }
+
+    public function manage(){
+        $listings = auth()->user()->listings()->get();
+        return view ('listings.manage', [
+            'listings' => $listings
+        ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Listing $listing)
     {
-        //
+        if($listing->user_id != auth()->id()){
+            abort(403, 'Unauthorized Action');
+        }
+
+        
+        // $file = 'storage/'. $listing->logo;
+        // dd($file);
+        // if(is_file($file)){
+        //     Storage::delete($file);
+        //     // unlink(storage_path('app/public/'.$listing->logo));
+        // }
+
+
+        $listing->delete();
+
+        return redirect('/')->with('success', 'Listing Deleted Successully');
     }
 }
